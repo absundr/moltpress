@@ -1,0 +1,21 @@
+services:
+  moltpress:
+    build: .
+    container_name: moltpress
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Pass the API key securely
+      - API_KEY=${API_KEY}
+
+      # Tell the app to store the DB in the mounted data volume
+      - DB_PATH=/app/data/moltpress.sqlite
+
+      - NODE_ENV=production
+    volumes:
+      # Persist the Database
+      - ./data:/app/data
+
+      # Persist the Images
+      - ./public/images:/app/public/images

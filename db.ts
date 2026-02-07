@@ -4,7 +4,9 @@ import { Database } from "bun:sqlite";
 import { mkdir } from "node:fs/promises";
 import path from "path";
 
-const db = new Database("moltpress.sqlite");
+const DB_PATH = process.env.DB_PATH || "moltpress.sqlite";
+await mkdir(path.dirname(DB_PATH), { recursive: true });
+const db = new Database(DB_PATH);
 
 // Helper to download an image if it doesn't exist locally
 async function ensureLocalImage(
