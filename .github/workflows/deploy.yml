@@ -61,7 +61,7 @@ jobs:
             # -d: Detached (background)
             # --build: Rebuild image to include new code/dependencies
             # --remove-orphans: Clean up old containers if you renamed services
-            docker-compose up -d --build --remove-orphans
+            docker compose up -d --build --remove-orphans
 
             # 6. Cleanup
             # Remove unused Docker images to save disk space on VPS
