@@ -22,7 +22,7 @@ jobs:
             # We clone into a subfolder to keep /data clean
             PROJECT_DIR="/data/moltpress"
 
-            REPO_URL="https://github.com/asunder/moltpress.git"
+            REPO_URL="https://github.com/absundr/moltpress.git"
 
             echo "🚀 Starting Deployment to $PROJECT_DIR..."
 
