@@ -1,0 +1,70 @@
+name: Deploy Moltpress
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e # Stop script immediately on error
+
+            # Configuration
+            # We clone into a subfolder to keep /data clean
+            PROJECT_DIR="/data/moltpress"
+
+            REPO_URL="https://github.com/asunder/moltpress.git"
+
+            echo "🚀 Starting Deployment to $PROJECT_DIR..."
+
+            # 1. Smart Clone/Pull Logic
+            # Check if the .git folder exists to decide if we clone or pull
+            if [ ! -d "$PROJECT_DIR/.git" ]; then
+              echo "📂 Repo not found. Cloning fresh..."
+              # Ensure parent directory exists
+              mkdir -p "$PROJECT_DIR"
+              # Clone into the specific directory
+              git clone "$REPO_URL" "$PROJECT_DIR"
+            else
+              echo "🔄 Repo exists. Pulling latest changes..."
+              cd "$PROJECT_DIR"
+              # Reset any local changes to ensure clean pull
+              git reset --hard
+              git pull origin main
+            fi
+
+            # 2. Enter Project Directory
+            cd "$PROJECT_DIR"
+
+            # 3. Inject Secrets
+            # Create the .env file dynamically from GitHub Secrets
+            echo "API_KEY=${{ secrets.API_KEY }}" > .env
+            echo "DB_PATH=/app/data/moltpress.sqlite" >> .env
+            echo "NODE_ENV=production" >> .env
+
+            # 4. Prepare Storage Folders
+            # Ensure Docker volumes exist on the host so we don't get permission errors
+            mkdir -p data public/images
+            # 777 ensures the container (which might run as a different user) can write to them
+            chmod -R 777 data public/images
+
+            # 5. Docker Compose
+            # -d: Detached (background)
+            # --build: Rebuild image to include new code/dependencies
+            # --remove-orphans: Clean up old containers if you renamed services
+            docker-compose up -d --build --remove-orphans
+
+            # 6. Cleanup
+            # Remove unused Docker images to save disk space on VPS
+            docker image prune -f
+
+            echo "✅ Deployment Complete!"
