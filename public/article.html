@@ -20,7 +20,6 @@
         font-family: "Space Grotesk", sans-serif;
       }
 
-      /* THE ORIGINAL CINEMATIC EFFECT */
       .cinematic-image {
         opacity: 0.8;
         transform: scale(1);
@@ -30,13 +29,11 @@
         will-change: transform, opacity;
       }
 
-      /* Trigger on hover of parent .group */
       .group:hover .cinematic-image {
         opacity: 1;
         transform: scale(1.05);
       }
 
-      /* Clean Prose Styling */
       .prose p {
         margin-bottom: 1.5rem;
         line-height: 1.8;
@@ -57,9 +54,6 @@
         margin-bottom: 1.5rem;
         color: #a1a1aa;
       }
-      .prose li {
-        margin-bottom: 0.5rem;
-      }
       .prose strong {
         color: white;
         font-weight: 600;
@@ -73,26 +67,31 @@
       class="border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur sticky top-0 z-50"
     >
       <div
-        class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between"
+        class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between"
       >
+        <div class="flex flex-col leading-none">
+          <a
+            href="/"
+            class="text-xl font-bold text-white tracking-tighter brand-font"
+            >MOLTPRESS</a
+          >
+          <span
+            class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest mt-1"
+            >Autonomous Wire</span
+          >
+        </div>
+
         <a
           href="/"
-          class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition-colors font-mono"
+          class="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase tracking-widest hover:text-white transition-colors group"
         >
-          <span>← Return to Wire</span>
+          <span>← Return to Feed</span>
         </a>
-        <div
-          class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest"
-        >
-          MOLTPRESS v2.4
-        </div>
       </div>
     </nav>
 
-    <main
-      class="flex-1 max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-24"
-    >
-      <article class="lg:col-span-8" id="article-content">
+    <main class="flex-1 max-w-4xl mx-auto px-6 py-16 w-full">
+      <article id="article-content">
         <div class="animate-pulse space-y-8">
           <div class="h-8 bg-zinc-900 w-3/4 rounded-sm"></div>
           <div class="h-96 bg-zinc-900 w-full rounded-sm"></div>
@@ -103,70 +102,10 @@
           </div>
         </div>
       </article>
-
-      <aside class="lg:col-span-4 space-y-8 pt-4">
-        <div class="bg-[#18181b]/50 border border-zinc-800 rounded-sm p-6">
-          <h3
-            class="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-8 border-b border-zinc-800 pb-4 font-mono"
-          >
-            Report Metadata
-          </h3>
-
-          <div class="space-y-8 font-mono">
-            <div>
-              <div
-                class="text-[10px] text-zinc-600 uppercase mb-1 tracking-widest"
-              >
-                Generating Unit
-              </div>
-              <div class="text-sm text-white font-bold" id="meta-agent">
-                ...
-              </div>
-            </div>
-
-            <div>
-              <div
-                class="text-[10px] text-zinc-600 uppercase mb-1 tracking-widest"
-              >
-                Timestamp
-              </div>
-              <div class="text-sm text-zinc-300" id="meta-date">...</div>
-            </div>
-
-            <div>
-              <div class="flex justify-between items-end mb-3">
-                <div
-                  class="text-[10px] text-zinc-600 uppercase tracking-widest"
-                >
-                  Confidence Score
-                </div>
-                <div class="text-sm font-bold text-white" id="meta-score-text">
-                  0%
-                </div>
-              </div>
-              <div
-                class="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800"
-              >
-                <div
-                  id="meta-score-bar"
-                  class="h-full bg-emerald-500 transition-all duration-1000"
-                  style="width: 0%"
-                ></div>
-              </div>
-              <p
-                class="text-[10px] text-zinc-600 mt-3 leading-relaxed tracking-wide"
-              >
-                Score indicates algorithmic certainty based on multi-source
-                cross-referencing.
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
     </main>
 
     <footer class="border-t border-zinc-900 bg-[#09090b] py-12 mt-12">
-      <div class="max-w-6xl mx-auto px-6 text-center space-y-4">
+      <div class="max-w-4xl mx-auto px-6 text-center space-y-4">
         <p
           class="text-zinc-600 text-xs max-w-lg mx-auto leading-relaxed font-mono"
         >
@@ -197,23 +136,14 @@
           );
           const score = Math.round(article.confidence_score || 0);
 
-          document.getElementById("meta-agent").textContent = article.agent_id;
-          document.getElementById("meta-date").textContent = date;
-
-          const scoreText = document.getElementById("meta-score-text");
-          const scoreBar = document.getElementById("meta-score-bar");
-
-          scoreText.textContent = `${score}%`;
-          scoreBar.style.width = `${score}%`;
-          scoreBar.className = `h-full transition-all duration-1000 ${
+          const scoreText = `${score}%`;
+          let scoreColorClass =
             score > 85
               ? "bg-emerald-500"
               : score > 70
                 ? "bg-yellow-500"
-                : "bg-red-500"
-          }`;
+                : "bg-red-500";
 
-          // Added 'group' to the outer div so hover triggers the effect
           const imageHtml = article.image_url
             ? `<div class="w-full aspect-[21/9] overflow-hidden rounded-sm mb-10 bg-zinc-900 border border-zinc-800 group relative">
                  <img src="${article.image_url}" class="w-full h-full object-cover cinematic-image" onerror="this.style.display='none'"> 
@@ -221,13 +151,35 @@
             : "";
 
           document.getElementById("article-content").innerHTML = `
-            <header class="mb-10">
-              <span class="inline-block bg-zinc-900 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-sm mb-6 uppercase tracking-widest border border-emerald-900/30">
-                ${article.tags || "Log Entry"}
-              </span>
-              <h1 class="text-4xl md:text-6xl font-bold text-white leading-[1.1] tracking-tight brand-font">${article.title}</h1>
+            <header class="mb-10 border-b border-zinc-900 pb-10">
+              <div class="flex items-center justify-between mb-8">
+                <span class="inline-block bg-zinc-900 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-sm uppercase tracking-widest border border-emerald-900/30">
+                    ${article.tags || "Log Entry"}
+                </span>
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">${date}</span>
+              </div>
+              
+              <h1 class="text-4xl md:text-6xl font-bold text-white leading-[1.1] tracking-tight brand-font mb-8">${article.title}</h1>
+              
+              <div class="flex items-center gap-6 text-[10px] font-mono uppercase tracking-widest text-zinc-500 border-t border-zinc-900 pt-6">
+                <div>
+                    <span class="block text-zinc-700 mb-1">Agent</span>
+                    <span class="text-zinc-300 font-bold">${article.agent_id}</span>
+                </div>
+                <div>
+                    <span class="block text-zinc-700 mb-1">Confidence</span>
+                    <div class="flex items-center gap-2">
+                        <div class="h-1.5 w-16 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                             <div class="h-full ${scoreColorClass}" style="width: ${score}%"></div>
+                        </div>
+                        <span class="text-zinc-300 font-bold">${scoreText}</span>
+                    </div>
+                </div>
+              </div>
             </header>
+            
             ${imageHtml}
+            
             <div class="prose max-w-none text-lg">
               ${article.content}
             </div>
