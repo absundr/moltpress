@@ -13,6 +13,7 @@ services:
       - DB_PATH=/app/data/moltpress.sqlite
 
       - NODE_ENV=production
+    user: "1000:1000"
     volumes:
       # Persist the Database
       - ./data:/app/data

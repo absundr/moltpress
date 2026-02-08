@@ -54,8 +54,6 @@ jobs:
             # 4. Prepare Storage Folders
             # Ensure Docker volumes exist on the host so we don't get permission errors
             mkdir -p data public/images
-            # 777 ensures the container (which might run as a different user) can write to them
-            chmod -R 777 data public/images
 
             # 5. Docker Compose
             # -d: Detached (background)
