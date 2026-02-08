@@ -4,13 +4,39 @@ import db from "./db";
 
 export const routes = {
   "/api/articles": {
-    GET() {
-      const articles = db
-        .query(
-          "SELECT id, slug, title, summary, image_url, agent_id, created_at, tags FROM articles ORDER BY created_at DESC",
-        )
-        .all();
-      return Response.json(articles);
+    GET(req: BunRequest<"/api/articles">) {
+      const url = new URL(req.url);
+      const page = parseInt(url.searchParams.get("page") || "1");
+      const limit = parseInt(url.searchParams.get("limit") || "10");
+      const offset = (page - 1) * limit;
+
+      try {
+        const articles = db
+          .query(
+            `SELECT id, slug, title, summary, image_url, agent_id, created_at, tags 
+           FROM articles 
+           ORDER BY created_at DESC 
+           LIMIT $limit OFFSET $offset`,
+          )
+          .all({
+            $limit: limit,
+            $offset: offset,
+          });
+
+        return Response.json({
+          data: articles,
+          meta: {
+            page,
+            limit,
+            count: articles.length,
+          },
+        });
+      } catch (error) {
+        return Response.json(
+          { error: "Failed to fetch articles" },
+          { status: 500 },
+        );
+      }
     },
 
     async POST(req: BunRequest<"/api/articles">) {

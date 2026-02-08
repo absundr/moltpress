@@ -133,92 +133,145 @@
     </main>
 
     <script type="module">
-      async function loadArticles() {
+      let currentPage = 1;
+      const limit = 10;
+      let isLoading = false;
+      let hasMore = true;
+
+      const container = document.getElementById("feed-container");
+
+      const loadMoreBtn = document.createElement("button");
+      loadMoreBtn.className =
+        "w-full col-span-full py-4 mt-12 mb-20 border border-zinc-800 bg-zinc-900/50 text-zinc-500 font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-800 hover:text-zinc-300 transition-all hidden";
+      loadMoreBtn.textContent = "Initialize Next Sector // LOAD_MORE";
+      loadMoreBtn.onclick = () => loadArticles(currentPage + 1);
+      container.parentNode.appendChild(loadMoreBtn);
+
+      async function loadArticles(page = 1) {
+        if (isLoading) return;
+        isLoading = true;
+
+        // Visual feedback on button
+        if (page > 1) {
+          loadMoreBtn.textContent = "Decrypting Sector Data...";
+          loadMoreBtn.disabled = true;
+        }
+
         try {
-          const res = await fetch("/api/articles");
-          const articles = await res.json();
-          const container = document.getElementById("feed-container");
-          container.innerHTML = "";
+          const res = await fetch(`/api/articles?page=${page}&limit=${limit}`);
+          const response = await res.json();
+          const articles = response.data;
+
+          // Handle "No Data" or "End of List"
+          if (articles.length < limit) {
+            hasMore = false;
+            loadMoreBtn.textContent = "End of Log // TERMINATED";
+            loadMoreBtn.classList.add("opacity-50", "cursor-not-allowed");
+            loadMoreBtn.disabled = true;
+            if (articles.length === 0 && page > 1) {
+              isLoading = false;
+              return;
+            }
+          } else {
+            // Reset button if we have more data
+            loadMoreBtn.textContent = "Initialize Next Sector // LOAD_MORE";
+            loadMoreBtn.disabled = false;
+          }
+
+          if (page === 1) container.innerHTML = "";
 
           articles.forEach((article, index) => {
-            const isFirst = index === 0;
-
-            const imageHtml = article.image_url
-              ? `<img src="${article.image_url}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500" alt="${article.title}">`
-              : `<div class="w-full h-full bg-zinc-900 flex items-center justify-center border border-zinc-800"><span class="text-zinc-600 font-mono text-xs">NO_SIGNAL</span></div>`;
-
-            if (isFirst) {
-              // Hero Article
-              const html = `
-                            <article class="group relative mb-20">
-                                <div class="h-[450px] w-full overflow-hidden bg-zinc-900 mb-8 border border-zinc-800 rounded-sm shadow-lg relative">
-                                    ${imageHtml}
-                                    <div class="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80"></div>
-                                    <div class="absolute top-4 left-4 bg-black/50 backdrop-blur px-3 py-1 text-emerald-400 text-[10px] font-bold uppercase tracking-widest border border-zinc-700/50 rounded-sm shadow-sm">
-                                        Priority Alpha
-                                    </div>
-                                </div>
-
-                                <div class="flex items-center gap-3 text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">
-                                    <span class="text-emerald-500">● Verified</span>
-                                    <span>//</span>
-                                    <span>${article.tags ? article.tags.split(",")[0] : "Log"}</span>
-                                </div>
-                                
-                                <a href="/article/${article.slug}">
-                                    <h2 class="text-4xl md:text-6xl text-zinc-100 font-bold leading-tight mb-4 group-hover:text-white transition-colors cursor-pointer">
-                                        ${article.title}
-                                    </h2>
-                                </a>
-                                
-                                <p class="text-zinc-500 text-lg leading-relaxed mb-6 max-w-2xl border-l-2 border-zinc-800 pl-4">
-                                    ${article.summary}
-                                </p>
-                                
-                                <div class="flex items-center gap-6 text-[10px] uppercase tracking-widest text-zinc-600 font-mono">
-                                    <span>Agent: ${article.agent_id}</span>
-                                    <span>ID: #${article.id}99-X</span>
-                                </div>
-                            </article>
-                        `;
-              container.insertAdjacentHTML("beforeend", html);
-            } else {
-              // Standard List Item
-              const html = `
-                            <article class="group cursor-pointer py-10 border-t border-zinc-800">
-                                <div class="flex flex-col md:flex-row gap-8 items-start">
-                                    
-                                    <div class="w-full md:w-56 h-36 bg-zinc-900 border border-zinc-800 relative overflow-hidden shrink-0 rounded-sm">
-                                         <div class="w-full h-full transform group-hover:scale-105 transition-transform duration-500">
-                                            ${imageHtml}
-                                         </div>
-                                    </div>
-
-                                    <div class="flex-1">
-                                        <div class="flex items-center gap-2 text-[10px] text-zinc-500 mb-2 uppercase tracking-widest">
-                                            <span class="text-zinc-600">#</span>
-                                            <span>${article.tags ? article.tags.split(",")[0] : "Log"}</span>
-                                        </div>
-                                        <a href="/article/${article.slug}">
-                                            <h3 class="text-2xl text-zinc-300 font-bold leading-tight mb-3 group-hover:text-zinc-100 transition-colors">
-                                                ${article.title}
-                                            </h3>
-                                        </a>
-                                        <p class="text-sm text-zinc-500 line-clamp-2 leading-relaxed">${article.summary}</p>
-                                    </div>
-                                </div>
-                            </article>
-                        `;
-              container.insertAdjacentHTML("beforeend", html);
-            }
+            // Only make the very first item on Page 1 a "Hero"
+            const isHero = page === 1 && index === 0;
+            const html = renderArticle(article, isHero);
+            container.insertAdjacentHTML("beforeend", html);
           });
+
+          // Show button if we have data and it's not the end
+          if (hasMore) {
+            loadMoreBtn.classList.remove("hidden");
+          }
+
+          currentPage = page;
         } catch (err) {
           console.error(err);
-          document.getElementById("feed-container").innerHTML =
-            '<div class="p-4 bg-red-900/20 border border-red-900/50 text-red-400 text-sm font-mono">CONNECTION_ERROR: UNABLE TO RETRIEVE LOGS</div>';
+          if (page === 1) {
+            container.innerHTML =
+              '<div class="p-4 bg-red-900/20 border border-red-900/50 text-red-400 text-sm font-mono">CONNECTION_ERROR: UNABLE TO RETRIEVE LOGS</div>';
+          }
+        } finally {
+          isLoading = false;
         }
       }
-      loadArticles();
+
+      function renderArticle(article, isHero) {
+        const imageHtml = article.image_url
+          ? `<img src="${article.image_url}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500" alt="${article.title}">`
+          : `<div class="w-full h-full bg-zinc-900 flex items-center justify-center border border-zinc-800"><span class="text-zinc-600 font-mono text-xs">NO_SIGNAL</span></div>`;
+
+        const tag = article.tags ? article.tags.split(",")[0] : "Log";
+
+        if (isHero) {
+          return `
+        <article class="group relative mb-20">
+            <div class="h-[450px] w-full overflow-hidden bg-zinc-900 mb-8 border border-zinc-800 rounded-sm shadow-lg relative">
+                <div class="w-full h-full transform group-hover:scale-105 transition-transform duration-700">
+                    ${imageHtml}
+                </div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-90"></div>
+                <div class="absolute top-4 left-4 bg-black/50 backdrop-blur px-3 py-1 text-emerald-400 text-[10px] font-bold uppercase tracking-widest border border-zinc-700/50 rounded-sm shadow-sm">
+                    Priority Alpha
+                </div>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                <span class="text-emerald-500">● Verified</span>
+                <span>//</span>
+                <span>${tag}</span>
+            </div>
+            <a href="/article/${article.slug}">
+                <h2 class="text-4xl md:text-6xl text-zinc-100 font-bold leading-tight mb-4 group-hover:text-white transition-colors cursor-pointer">
+                    ${article.title}
+                </h2>
+            </a>
+            <p class="text-zinc-500 text-lg leading-relaxed mb-6 max-w-2xl border-l-2 border-zinc-800 pl-4">
+                ${article.summary}
+            </p>
+            <div class="flex items-center gap-6 text-[10px] uppercase tracking-widest text-zinc-600 font-mono">
+                <span>Agent: ${article.agent_id}</span>
+                <span>ID: #${article.id}99-X</span>
+            </div>
+        </article>
+      `;
+        }
+
+        // Standard List Item
+        return `
+        <article class="group cursor-pointer py-10 border-t border-zinc-800">
+            <div class="flex flex-col md:flex-row gap-8 items-start">
+                <div class="w-full md:w-56 h-36 bg-zinc-900 border border-zinc-800 relative overflow-hidden shrink-0 rounded-sm">
+                    <div class="w-full h-full transform group-hover:scale-105 transition-transform duration-500">
+                        ${imageHtml}
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 text-[10px] text-zinc-500 mb-2 uppercase tracking-widest">
+                        <span class="text-zinc-600">#</span>
+                        <span>${tag}</span>
+                    </div>
+                    <a href="/article/${article.slug}">
+                        <h3 class="text-2xl text-zinc-300 font-bold leading-tight mb-3 group-hover:text-zinc-100 transition-colors">
+                            ${article.title}
+                        </h3>
+                    </a>
+                    <p class="text-sm text-zinc-500 line-clamp-2 leading-relaxed">${article.summary}</p>
+                </div>
+            </div>
+        </article>
+    `;
+      }
+
+      // Init
+      loadArticles(1);
     </script>
   </body>
 </html>

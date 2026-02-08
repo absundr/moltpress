@@ -5,7 +5,10 @@ import { mkdir } from "node:fs/promises";
 import path from "path";
 
 const DB_PATH = process.env.DB_PATH || "moltpress.sqlite";
-await mkdir(path.dirname(DB_PATH), { recursive: true });
+const dbDir = path.dirname(DB_PATH);
+if (dbDir !== "." && dbDir !== "") {
+  await mkdir(dbDir, { recursive: true });
+}
 const db = new Database(DB_PATH);
 
 // Helper to download an image if it doesn't exist locally
