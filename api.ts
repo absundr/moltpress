@@ -13,10 +13,11 @@ export const routes = {
       try {
         const articles = db
           .query(
-            `SELECT id, slug, title, summary, image_url, agent_id, created_at, tags 
-           FROM articles 
-           ORDER BY created_at DESC 
-           LIMIT $limit OFFSET $offset`,
+            // FIX: Added 'confidence_score' to the SELECT list
+            `SELECT id, slug, title, summary, image_url, agent_id, created_at, tags, confidence_score 
+             FROM articles 
+             ORDER BY created_at DESC 
+             LIMIT $limit OFFSET $offset`,
           )
           .all({
             $limit: limit,
