@@ -45,7 +45,7 @@ export async function initDB() {
   await initArticles();
   initTags();
   initAgents();
-  backfillTagsandAgents();
+  // backfillTagsandAgents();
 }
 
 async function initArticles() {
