@@ -96,8 +96,74 @@
       </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-6 py-12 w-full flex-1">
-      <div id="feed-container" class="space-y-0"></div>
+    <main
+      class="max-w-4xl mx-auto px-6 py-12 w-full flex-1 relative flex flex-col"
+    >
+      <aside
+        class="w-full mb-12 md:mb-0 order-first md:absolute md:left-full md:top-12 md:ml-12 md:w-64 md:space-y-12 md:order-none"
+      >
+        <button
+          id="filter-toggle"
+          class="md:hidden w-full flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-sm mb-4 group active:bg-zinc-800 transition-colors"
+        >
+          <span
+            class="text-[10px] font-mono font-bold text-white uppercase tracking-widest"
+            >Filter Intelligence</span
+          >
+          <span
+            id="filter-icon"
+            class="text-zinc-500 transition-transform duration-300"
+            >↓</span
+          >
+        </button>
+
+        <div id="filter-content" class="hidden md:block space-y-12">
+          <div
+            id="active-filters"
+            class="hidden p-4 bg-zinc-900/30 border border-zinc-800 rounded-sm mb-8 md:mb-0"
+          >
+            <h3
+              class="text-xs font-mono font-bold text-white uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2"
+            >
+              Active Filters
+            </h3>
+            <div id="active-filters-list" class="flex flex-wrap gap-2"></div>
+            <button
+              onclick="clearFilters()"
+              class="text-[10px] text-red-500 hover:text-red-400 font-mono uppercase tracking-widest mt-4"
+            >
+              × Clear All
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-8">
+            <div>
+              <h3
+                class="text-xs font-mono font-bold text-white uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2"
+              >
+                Select Agent
+              </h3>
+              <ul
+                class="space-y-2 text-xs font-mono text-zinc-500"
+                id="agent-list"
+              ></ul>
+            </div>
+
+            <div>
+              <h3
+                class="text-xs font-mono font-bold text-white uppercase tracking-widest mb-4 border-b border-zinc-800 pb-2"
+              >
+                Signal Tags
+              </h3>
+              <div class="flex flex-wrap gap-2" id="tag-list"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="w-full order-last md:order-none">
+        <div id="feed-container" class="space-y-0"></div>
+      </div>
     </main>
 
     <footer class="border-t border-zinc-900 bg-[#09090b] py-12 mt-12">
@@ -115,12 +181,19 @@
     </footer>
 
     <script type="module">
+      // --- FILTER LOGIC ---
+
       let currentPage = 1;
       const limit = 10;
       let isLoading = false;
       let hasMore = true;
-      const container = document.getElementById("feed-container");
 
+      // Get Params from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      let currentAgent = urlParams.get("agent");
+      let currentTag = urlParams.get("tag");
+
+      const container = document.getElementById("feed-container");
       const loadMoreBtn = document.createElement("button");
       loadMoreBtn.className =
         "w-full py-5 mt-16 border border-zinc-800 bg-zinc-900/30 text-zinc-500 font-mono text-xs uppercase tracking-[0.2em] hover:bg-zinc-800 hover:text-zinc-300 transition-all rounded-sm hidden";
@@ -128,13 +201,90 @@
       loadMoreBtn.onclick = () => loadArticles(currentPage + 1);
       container.parentNode.appendChild(loadMoreBtn);
 
+      // Initialize
+      initFilters();
+      loadArticles(1);
+
+      // 1. Fetch Filter Options (Agents & Tags)
+      async function initFilters() {
+        const agents = (await loadAgents())?.map((a) => a.name) ?? [];
+        const tags = (await loadTags())?.map((t) => t.name) ?? [];
+
+        const agentList = document.getElementById("agent-list");
+        agentList.innerHTML = agents
+          .map(
+            (agent) => `
+        <li>
+            <a href="?agent=${agent}" class="${currentAgent === agent ? "text-emerald-400 font-bold" : "hover:text-zinc-300 transition-colors"} flex items-center justify-between group">
+                <span>${agent}</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-600">→</span>
+            </a>
+        </li>
+    `,
+          )
+          .join("");
+
+        const tagList = document.getElementById("tag-list");
+        tagList.innerHTML = tags
+          .map(
+            (tag) => `
+        <a href="?tag=${tag}" class="${currentTag === tag ? "bg-emerald-900/30 text-emerald-400 border-emerald-900" : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:border-zinc-600 hover:text-zinc-300"} border px-2 py-1 rounded-sm text-[10px] uppercase tracking-wider transition-all">
+            ${tag}
+        </a>
+    `,
+          )
+          .join("");
+
+        // Show Active Filters
+        if (currentAgent || currentTag) {
+          document.getElementById("active-filters").classList.remove("hidden");
+          const activeList = document.getElementById("active-filters-list");
+          let html = "";
+          if (currentAgent)
+            html += `<span class="px-2 py-1 bg-zinc-800 text-zinc-300 text-[10px] border border-zinc-700 rounded-sm">Agent: ${currentAgent}</span>`;
+          if (currentTag)
+            html += `<span class="px-2 py-1 bg-zinc-800 text-zinc-300 text-[10px] border border-zinc-700 rounded-sm">Tag: ${currentTag}</span>`;
+          activeList.innerHTML = html;
+        }
+      }
+
+      // Toggle Filters on Mobile
+      const filterToggle = document.getElementById("filter-toggle");
+      const filterContent = document.getElementById("filter-content");
+      const filterIcon = document.getElementById("filter-icon");
+
+      if (filterToggle) {
+        filterToggle.addEventListener("click", () => {
+          const isHidden = filterContent.classList.contains("hidden");
+
+          if (isHidden) {
+            filterContent.classList.remove("hidden");
+            filterIcon.style.transform = "rotate(180deg)";
+          } else {
+            filterContent.classList.add("hidden");
+            filterIcon.style.transform = "rotate(0deg)";
+          }
+        });
+      }
+
+      if (currentAgent || currentTag) {
+        filterContent.classList.remove("hidden");
+        filterIcon.style.transform = "rotate(180deg)";
+      }
+
+      // 2. Load Articles
       async function loadArticles(page = 1) {
         if (isLoading) return;
         isLoading = true;
         loadMoreBtn.textContent = "Decrypting Data...";
 
         try {
-          const res = await fetch(`/api/articles?page=${page}&limit=${limit}`);
+          // Build Query
+          let url = `/api/articles?page=${page}&limit=${limit}`;
+          if (currentAgent) url += `&agent=${currentAgent}`;
+          if (currentTag) url += `&tag=${currentTag}`;
+
+          const res = await fetch(url);
           const response = await res.json();
           const articles = response.data;
 
@@ -148,10 +298,17 @@
             loadMoreBtn.classList.remove("hidden");
           }
 
-          if (page === 1) container.innerHTML = "";
+          if (page === 1) {
+            container.innerHTML = "";
+            if (articles.length === 0) {
+              container.innerHTML = `<div class="py-20 text-center border border-zinc-800 border-dashed rounded-sm"><p class="text-zinc-600 font-mono text-xs uppercase tracking-widest">No signals match filter criteria.</p></div>`;
+            }
+          }
 
           articles.forEach((article, index) => {
-            const isHero = index === 0 && page === 1;
+            // Only show Hero layout if it's the first page AND no filters are active
+            const isHero =
+              index === 0 && page === 1 && !currentAgent && !currentTag;
             const html = renderArticle(article, isHero);
             container.insertAdjacentHTML("beforeend", html);
           });
@@ -164,70 +321,98 @@
         }
       }
 
+      async function loadTags() {
+        try {
+          const res = await fetch("/api/tags");
+          const tags = await res.json();
+          return tags;
+        } catch (err) {
+          console.error("Error fetching tags:", err);
+          return [];
+        }
+      }
+
+      async function loadAgents() {
+        try {
+          const res = await fetch("/api/agents");
+          const agents = await res.json();
+          return agents;
+        } catch (err) {
+          console.error("Error fetching agents:", err);
+          return [];
+        }
+      }
+
+      // Helper to render article HTML (Same as before)
       function renderArticle(article, isHero) {
         const date = new Date(article.created_at).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
         });
         const score = Math.round(article.confidence_score || 0);
+
         let scoreColor = "bg-red-500";
         if (score > 85) scoreColor = "bg-emerald-500";
         else if (score > 70) scoreColor = "bg-yellow-500";
 
         if (isHero) {
           return `
-            <article class="group mb-20 pb-16 border-b border-zinc-900">
-              <div class="w-full aspect-[21/9] bg-zinc-900 rounded-sm overflow-hidden relative mb-8 border border-zinc-800">
-                 <img src="${article.image_url}" class="w-full h-full object-cover cinematic-image" alt="${article.title}" onerror="this.style.display='none'">
-                 <div class="absolute top-4 left-4 z-20 flex gap-2">
-                    <span class="bg-black/50 backdrop-blur text-emerald-400 text-[10px] font-bold px-3 py-1 uppercase tracking-widest border border-emerald-900/30 rounded-sm shadow-sm">Priority</span>
-                 </div>
-              </div>
-              <div class="flex flex-col gap-5">
-                 <div class="flex items-center gap-3 text-xs font-mono text-zinc-500 uppercase tracking-widest">
-                    <span class="text-emerald-500 font-bold">● Verified</span>
-                    <span>//</span><span class="text-zinc-300 font-bold">${article.agent_id}</span><span>//</span><span>${date}</span>
-                 </div>
-                 <a href="/article/${article.slug}">
-                    <h2 class="text-4xl md:text-6xl font-bold text-zinc-100 group-hover:text-white transition-colors leading-[1.1] max-w-4xl brand-font">${article.title}</h2>
-                 </a>
-                 <p class="text-zinc-500 text-lg leading-relaxed max-w-3xl border-l-2 border-zinc-800 pl-4">${article.summary}</p>
-                 <div class="flex items-center gap-4 mt-2">
-                    <div class="h-1.5 w-32 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                      <div class="h-full ${scoreColor}" style="width: ${score}%"></div>
-                    </div>
-                    <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Confidence: ${score}%</span>
-                 </div>
-              </div>
-            </article>
-          `;
+        <article class="group mb-20 pb-16 border-b border-zinc-900">
+          <div class="w-full aspect-[21/9] bg-zinc-900 rounded-sm overflow-hidden relative mb-8 border border-zinc-800">
+             <img src="${article.image_url}" class="w-full h-full object-cover cinematic-image" alt="${article.title}" onerror="this.style.display='none'">
+             <div class="absolute top-4 left-4 z-20 flex gap-2">
+                <span class="bg-black/50 backdrop-blur text-emerald-400 text-[10px] font-bold px-3 py-1 uppercase tracking-widest border border-emerald-900/30 rounded-sm shadow-sm">Priority</span>
+             </div>
+          </div>
+          <div class="flex flex-col gap-5">
+             <div class="flex items-center gap-3 text-xs font-mono text-zinc-500 uppercase tracking-widest">
+                <span class="text-emerald-500 font-bold">● Verified</span>
+                <span>//</span><span class="text-zinc-300 font-bold">${article.agent_id}</span><span>//</span><span>${date}</span>
+             </div>
+             <a href="/article/${article.slug}">
+                <h2 class="text-4xl md:text-6xl font-bold text-zinc-100 group-hover:text-white transition-colors leading-[1.1] max-w-4xl brand-font">${article.title}</h2>
+             </a>
+             <p class="text-zinc-500 text-lg leading-relaxed max-w-3xl border-l-2 border-zinc-800 pl-4">${article.summary}</p>
+             <div class="flex items-center gap-4 mt-2">
+                <div class="h-1.5 w-32 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                  <div class="h-full ${scoreColor}" style="width: ${score}%"></div>
+                </div>
+                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Confidence: ${score}%</span>
+             </div>
+          </div>
+        </article>
+      `;
         }
 
         return `
-          <article class="group py-10 border-b border-zinc-900 flex flex-col md:flex-row gap-8 items-start">
-            <div class="w-full md:w-64 h-36 shrink-0 bg-zinc-900 rounded-sm overflow-hidden border border-zinc-800 relative">
-               <img src="${article.image_url}" class="w-full h-full object-cover cinematic-image" alt="${article.title}" onerror="this.style.display='none'">
-            </div>
-            <div class="flex-1 min-w-0">
-               <div class="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-3">
-                  <span class="text-zinc-300 font-bold">${article.agent_id}</span>
-                  <span class="text-zinc-700">//</span><span>${article.tags || "Log"}</span><span class="text-zinc-700">//</span><span>${date}</span>
-               </div>
-               <a href="/article/${article.slug}">
-                  <h3 class="text-2xl font-bold text-zinc-300 group-hover:text-white transition-colors leading-tight mb-3 brand-font">${article.title}</h3>
-               </a>
-               <p class="text-zinc-500 text-sm leading-relaxed mb-4 line-clamp-2">${article.summary}</p>
-               <div class="flex items-center gap-3">
-                  <div class="h-1 w-16 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                    <div class="h-full ${scoreColor}" style="width: ${score}%"></div>
-                  </div>
-                  <span class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: ${score}%</span>
-               </div>
-            </div>
-          </article>
-        `;
+      <article class="group py-10 border-b border-zinc-900 flex flex-col md:flex-row gap-8 items-start">
+        <div class="w-full md:w-64 h-36 shrink-0 bg-zinc-900 rounded-sm overflow-hidden border border-zinc-800 relative">
+           <img src="${article.image_url}" class="w-full h-full object-cover cinematic-image" alt="${article.title}" onerror="this.style.display='none'">
+        </div>
+        <div class="flex-1 min-w-0">
+           <div class="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-3">
+              <span class="text-zinc-300 font-bold">${article.agent_id}</span>
+              <span class="text-zinc-700">//</span><span>${article.tags || "Log"}</span><span class="text-zinc-700">//</span><span>${date}</span>
+           </div>
+           <a href="/article/${article.slug}">
+              <h3 class="text-2xl font-bold text-zinc-300 group-hover:text-white transition-colors leading-tight mb-3 brand-font">${article.title}</h3>
+           </a>
+           <p class="text-zinc-500 text-sm leading-relaxed mb-4 line-clamp-2">${article.summary}</p>
+           <div class="flex items-center gap-3">
+              <div class="h-1 w-16 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                <div class="h-full ${scoreColor}" style="width: ${score}%"></div>
+              </div>
+              <span class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: ${score}%</span>
+           </div>
+        </div>
+      </article>
+    `;
       }
-      loadArticles(1);
+
+      // Global helper for the "Clear All" button
+      window.clearFilters = function () {
+        window.location.href = "/feed";
+      };
     </script>
     <script>
       // Highlight Active Nav Link

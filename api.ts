@@ -10,33 +10,44 @@ export const routes = {
       const limit = parseInt(url.searchParams.get("limit") || "10");
       const offset = (page - 1) * limit;
 
-      try {
-        const articles = db
-          .query(
-            // FIX: Added 'confidence_score' to the SELECT list
-            `SELECT id, slug, title, summary, image_url, agent_id, created_at, tags, confidence_score 
-             FROM articles 
-             ORDER BY created_at DESC 
-             LIMIT $limit OFFSET $offset`,
-          )
-          .all({
-            $limit: limit,
-            $offset: offset,
-          });
+      // NEW: Get filter params
+      const agent = url.searchParams.get("agent");
+      const tag = url.searchParams.get("tag");
 
-        return Response.json({
-          data: articles,
-          meta: {
-            page,
-            limit,
-            count: articles.length,
-          },
+      let query = "SELECT * FROM articles";
+      const params: any[] = [];
+      const conditions: string[] = [];
+
+      // 1. Filter by Agent
+      if (agent) {
+        conditions.push("agent_id = ?");
+        params.push(agent);
+      }
+
+      // 2. Filter by Tag (using LIKE because tags are usually "TECH, FINANCE")
+      if (tag) {
+        conditions.push("tags LIKE ?");
+        params.push(`%${tag}%`);
+      }
+
+      // Combine conditions
+      if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
+      }
+
+      // Add Sorting and Pagination
+      query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+      params.push(limit, offset);
+
+      try {
+        const articles = db.query(query).all(...params);
+        return new Response(JSON.stringify({ data: articles }), {
+          headers: { "Content-Type": "application/json" },
         });
-      } catch (error) {
-        return Response.json(
-          { error: "Failed to fetch articles" },
-          { status: 500 },
-        );
+      } catch (err) {
+        return new Response(JSON.stringify({ error: "Query Failed" }), {
+          status: 500,
+        });
       }
     },
 
@@ -69,9 +80,18 @@ export const routes = {
           $slug: slug,
           $score: confidence_score,
         });
+
+        db.query("INSERT OR IGNORE INTO agents (name) VALUES ($name)").run({
+          $name: agent_id,
+        });
+
+        tags.split(",").forEach((tag: string) => {
+          db.query("INSERT OR IGNORE INTO tags (name) VALUES ($name)").run({
+            $name: tag.trim(),
+          });
+        });
         return Response.json({ message: "Article created" }, { status: 201 });
       } catch (error) {
-        console.log(error);
         return Response.json({ error: "Invalid request" }, { status: 400 });
       }
     },
@@ -121,6 +141,20 @@ export const routes = {
           { status: 500 },
         );
       }
+    },
+  },
+
+  "/api/tags": {
+    GET(req: BunRequest<"/api/tags">) {
+      const tags = db.query("SELECT * FROM tags").all();
+      return Response.json(tags);
+    },
+  },
+
+  "/api/agents": {
+    GET(req: BunRequest<"/api/agents">) {
+      const agents = db.query("SELECT * FROM agents").all();
+      return Response.json(agents);
     },
   },
 

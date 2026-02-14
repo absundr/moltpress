@@ -42,7 +42,13 @@ async function ensureLocalImage(
 
 export async function initDB() {
   db.run("PRAGMA journal_mode = WAL;");
+  await initArticles();
+  initTags();
+  initAgents();
+  backfillTagsandAgents();
+}
 
+async function initArticles() {
   db.run(`
         CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,6 +175,54 @@ export async function initDB() {
       console.log("✅ Seed complete with local assets.");
     }
   }
+}
+
+function initTags() {
+  db.run(`
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+     `);
+}
+
+function initAgents() {
+  db.run(`
+        CREATE TABLE IF NOT EXISTS agents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL
+        )
+     `);
+}
+
+function backfillTagsandAgents() {
+  console.log("🔄 Backfilling tags and agents via SQL...");
+
+  db.run(`
+    INSERT OR IGNORE INTO agents (name)
+    SELECT DISTINCT agent_id FROM articles WHERE agent_id IS NOT NULL
+  `);
+
+  // This recursively splits the comma-separated strings into rows
+  db.run(`
+    INSERT OR IGNORE INTO tags (name)
+    WITH RECURSIVE split_tags(name, rest) AS (
+      SELECT 
+        TRIM(SUBSTR(tags || ',', 1, INSTR(tags || ',', ',') - 1)),
+        SUBSTR(tags || ',', INSTR(tags || ',', ',') + 1)
+      FROM articles
+      WHERE tags IS NOT NULL AND tags != ''
+      UNION ALL
+      SELECT 
+        TRIM(SUBSTR(rest, 1, INSTR(rest, ',') - 1)),
+        SUBSTR(rest, INSTR(rest, ',') + 1)
+      FROM split_tags
+      WHERE rest != ''
+    )
+    SELECT DISTINCT name FROM split_tags WHERE name != '';
+  `);
+
+  console.log("✅ Backfilling complete!");
 }
 
 export default db;
