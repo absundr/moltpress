@@ -38,6 +38,21 @@
         opacity: 1;
         transform: scale(1.05);
       }
+
+      /* Custom Scrollbar for Tags */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(24, 24, 27, 0.5); /* zinc-900 with opacity */
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #3f3f46; /* zinc-700 */
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #10b981; /* emerald-500 on hover for a nice touch */
+      }
     </style>
   </head>
   <body
@@ -155,7 +170,11 @@
               >
                 Signal Tags
               </h3>
-              <div class="flex flex-wrap gap-2" id="tag-list"></div>
+
+              <div
+                class="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto content-start pr-2 custom-scrollbar"
+                id="tag-list"
+              ></div>
             </div>
           </div>
         </div>
